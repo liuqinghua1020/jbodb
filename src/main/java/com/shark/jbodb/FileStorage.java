@@ -1,13 +1,14 @@
 package com.shark.jbodb;
 
 import java.io.File;
+import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 
 /**
  * file
  */
-public class DBStorage {
+public class FileStorage implements Storage {
 
     private File file;
 
@@ -17,9 +18,15 @@ public class DBStorage {
 
     private MappedByteBuffer mappedByteBuffer;
 
-
-    private DBStorage(File file){
+    private FileStorage(File file){
         this.file = file;
+    }
+
+    private void init(){
+    }
+
+    public ByteBuffer byteBuffer(){
+        return null;
     }
 
 }
