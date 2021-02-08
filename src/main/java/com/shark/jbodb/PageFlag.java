@@ -5,10 +5,10 @@ public class PageFlag {
     /**
      * Page flag
      */
-    private static final byte BranchPageFlag = 0x01;
-    private static final byte LeafPageFlag = 0x02;
-    private static final byte MetaPageFlag = 0x03;
-    private static final byte FreelistPageFlag = 0x10;
+    public static final byte BranchPageFlag = 0x01;
+    public static final byte LeafPageFlag = 0x02;
+    public static final byte MetaPageFlag = 0x03;
+    public static final byte FreelistPageFlag = 0x10;
 
     /**
      * Page element flag
