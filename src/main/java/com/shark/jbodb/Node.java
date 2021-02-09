@@ -1,8 +1,13 @@
 package com.shark.jbodb;
 
+import lombok.Builder;
+import lombok.Getter;
+
 /**
  * 一个page 映射到内存的结构
  */
+@Getter
+@Builder
 public class Node {
 
 
@@ -21,10 +26,24 @@ public class Node {
     private Node parent;
 
     private Node[] children;
-
     /**
      *
      */
     private Entry[] entries;
 
+    //在本节点插入Key和Value
+    public void put(byte[] oldKey, byte[] newKey, byte[] value, long pgid, int bucketLeafFlag) {
+    }
+
+    /**
+     * 返回一个 page header + inode 内容的大小的总共字节数
+     * @return
+     */
+    public int size() {
+        return 0;
+    }
+
+    //将 node 序列化到 page中
+    public void write(Page page) {
+    }
 }

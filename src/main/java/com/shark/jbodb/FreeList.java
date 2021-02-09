@@ -53,4 +53,8 @@ public class FreeList {
 
         //?
     }
+
+    public void release(long txid) {
+        //TODO
+    }
 }

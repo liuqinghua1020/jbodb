@@ -3,6 +3,7 @@ package com.shark.jbodb;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
+import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -31,7 +32,7 @@ public class DB {
 
     private Tx rwtx;
 
-    private Tx[] txs;
+    private List<Tx> txs;
 
     private Config config;
 
@@ -50,6 +51,8 @@ public class DB {
         this.writeLock = rwLock.writeLock();
         this.readLock = rwLock.readLock();
         this.metaLock = new ReentrantLock();
+
+        txs = new CopyOnWriteArrayList<>();
     }
 
     public void open(){
@@ -149,7 +152,13 @@ public class DB {
         Tx tx = this.begin(true);
 
         try {
+
+            tx.setManaged(true);
+
             dbHandle.handle(tx);
+
+            tx.setManaged(false);
+
             tx.commit();
         } catch (Exception e) {
             e.printStackTrace();
@@ -181,18 +190,59 @@ public class DB {
 
             Tx tx = new Tx();
             tx.init(this, true);
+
+
+            this.rwtx = tx;
+
+            long miniTxid = Long.MAX_VALUE;
+            for(Tx t : this.txs){
+                if(t.getMeta().getTxid() < miniTxid){
+                    miniTxid = t.getMeta().getTxid();
+                }
+            }
+
+            if(miniTxid > 0){
+                this.freeList.release(miniTxid - 1);
+            }
+
+            return tx;
         }finally {
             //释放meta锁
             metaLock.unlock();
         }
 
 
+    }
 
-        return null;
+    private void addTx(Tx tx) {
+        this.txs.add(tx);
     }
 
     private Tx beginTx() {
-        return null;
+        //获取写锁
+        writeLock.lock();
+        try {
+            //获取 meta 锁
+            metaLock.lock();
+
+            if(!opened){ //数据库没有打开成功
+                writeLock.unlock();
+                throw new RuntimeException("db not opened");
+            }
+
+            Tx tx = new Tx();
+            tx.init(this, true);
+
+
+            this.addTx(tx);
+
+
+            return tx;
+
+        }finally {
+            //释放meta锁
+            metaLock.unlock();
+        }
     }
 
 

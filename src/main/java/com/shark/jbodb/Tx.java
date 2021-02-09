@@ -1,11 +1,17 @@
 package com.shark.jbodb;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.HashMap;
 import java.util.Map;
 
+@Getter
 public class Tx {
+
     private boolean writeable;
 
+    @Setter
     private boolean managed;
 
     private DB db;
@@ -31,6 +37,11 @@ public class Tx {
 
     }
 
+
+    public Bucket createBucket(byte[] name){
+        return this.root.createBucket(name);
+    }
+
     /**
      * 初始化事务
      * @param db
@@ -47,7 +58,5 @@ public class Tx {
             this.pages = new HashMap<>();
             this.meta.setTxid(meta.getTxid() + 1);
         }
-
-
     }
 }

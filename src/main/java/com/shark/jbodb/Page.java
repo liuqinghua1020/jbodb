@@ -82,4 +82,12 @@ public class Page {
         //TODO
     }
 
+    /**
+     * TODO 需要一个 offset 和 currentPos ?
+     * @return
+     */
+    public byte[] toBytebuf(){
+        return null;
+    }
+
 }
