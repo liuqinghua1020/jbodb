@@ -207,6 +207,58 @@ public class Bucket {
     }
 
     public void put(byte[] key, byte[] value){
+        //TODO
+        Cursor cursor = this.cursor();
+        Cursor.CursorResult cursorResult = cursor.seek(key);
+
+        if(Arrays.equals(cursorResult.key, key) && (cursorResult.getFlags() & PageFlag.bucketLeafFlag) != 0){
+            throw new RuntimeException("ErrIncompatibleValue");
+        }
+
+        cursor.node().put(key, key, value, 0, 0);
+    }
+
+    public byte[] get(byte[] key){
+        Cursor c = this.cursor();
+        Cursor.CursorResult cursorResult = c.seek(key);
+
+        if((cursorResult.getFlags() & PageFlag.bucketLeafFlag) != 0){
+            throw new RuntimeException("ErrIncompatibleValue");
+        }
+
+        if(!Arrays.equals(cursorResult.key, key)){
+            throw new RuntimeException("ErrIncompatibleValue");
+        }
+
+        return cursorResult.value;
 
     }
+
+    //再平衡，只有节点删除时才有可能触发，这里暂时不做
+    public void rebalance() {
+        //TODO
+    }
+
+    //节点分裂
+    public void spill() {
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

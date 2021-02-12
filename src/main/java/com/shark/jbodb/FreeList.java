@@ -57,4 +57,15 @@ public class FreeList {
     public void release(long txid) {
         //TODO
     }
+
+    //根据 freeid 释放对应的page
+    public void free(long txid, Page page) {
+    }
+
+    public int size() {
+        return -1;
+    }
+
+    public void write(Page page) {
+    }
 }

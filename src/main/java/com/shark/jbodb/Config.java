@@ -8,8 +8,6 @@ import lombok.Getter;
 @Builder
 public class Config {
 
-    public static final int PAGE_SIZE = 1024 * 1024 * 4; //4K
-
     @Getter
     private String dataDir;
 

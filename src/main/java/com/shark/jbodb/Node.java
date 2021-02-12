@@ -43,7 +43,10 @@ public class Node {
         return 0;
     }
 
-    //将 node 序列化到 page中
+    /**
+     *  将 node 序列化到 page中,主要是将 node中的inode信息序列化到page里面
+     */
+
     public void write(Page page) {
     }
 }

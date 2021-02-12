@@ -2,7 +2,7 @@ package com.shark.jbodb;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
+import lombok.Getter;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -26,8 +26,10 @@ public class DB {
 
     private Meta meta1;
 
+    @Getter
     private volatile boolean opened;
 
+    @Getter
     private FreeList freeList;
 
     private Tx rwtx;
@@ -276,5 +278,21 @@ public class DB {
 
         //TODO throw Exception ,system exit
         return null;
+    }
+
+    /**
+     * 根据pageid获取
+     * @param pgid
+     * @return
+     */
+    public Page page(long pgid) {
+        return null;
+    }
+
+    /**
+     * 数据文件扩容
+     * @param size
+     */
+    public void grow(long size) {
     }
 }
