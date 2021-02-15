@@ -11,6 +11,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.shark.jbodb.DB.PAGE_SIZE;
+import static com.shark.jbodb.LeafPageElement.leafPageElementSize;
+import static com.shark.jbodb.Page.CONTENT_OFFSET;
+import static com.shark.jbodb.PageFlag.bucketLeafFlag;
+
 /**
  * 在 jbodb概念中，
  * bucket是一个子树，里面包含完整的 k/v 结构
@@ -47,6 +52,9 @@ public class Bucket {
     @Setter
     private Page page;
 
+    /**
+     * 此bucket对应的root node
+     */
     @Setter
     private Node rootNode;
 
@@ -89,7 +97,7 @@ public class Bucket {
          * 如果找到对应的key,则抛出异常
          */
         if(Arrays.equals(key, cursorResult.getKey())){
-            if((cursorResult.getFlags() & PageFlag.bucketLeafFlag) == 1){
+            if((cursorResult.getFlags() & bucketLeafFlag) == 1){
                 throw new RuntimeException("bucket is aleady exist");
             }
             throw new RuntimeException("incompatible value");
@@ -100,7 +108,7 @@ public class Bucket {
         Bucket bucket = Bucket.createEmptyBucket();
         byte[] value = bucket.write();
 
-        c.node().put(key, key, value, 0, PageFlag.bucketLeafFlag);
+        c.node().put(key, key, value, 0, bucketLeafFlag);
 
         return this.findBucket(key);
 
@@ -119,7 +127,7 @@ public class Bucket {
 
         Cursor.CursorResult cursorResult = c.seek(key);
 
-        if(!Arrays.equals(key, cursorResult.getKey()) || (cursorResult.getFlags()&PageFlag.bucketLeafFlag) == 0){
+        if(!Arrays.equals(key, cursorResult.getKey()) || (cursorResult.getFlags()& bucketLeafFlag) == 0){
             return null;
         }
 
@@ -211,7 +219,7 @@ public class Bucket {
         Cursor cursor = this.cursor();
         Cursor.CursorResult cursorResult = cursor.seek(key);
 
-        if(Arrays.equals(cursorResult.key, key) && (cursorResult.getFlags() & PageFlag.bucketLeafFlag) != 0){
+        if(Arrays.equals(cursorResult.key, key) && (cursorResult.getFlags() & bucketLeafFlag) != 0){
             throw new RuntimeException("ErrIncompatibleValue");
         }
 
@@ -222,7 +230,7 @@ public class Bucket {
         Cursor c = this.cursor();
         Cursor.CursorResult cursorResult = c.seek(key);
 
-        if((cursorResult.getFlags() & PageFlag.bucketLeafFlag) != 0){
+        if((cursorResult.getFlags() & bucketLeafFlag) != 0){
             throw new RuntimeException("ErrIncompatibleValue");
         }
 
@@ -239,8 +247,119 @@ public class Bucket {
         //TODO
     }
 
-    //节点分裂
+    /**
+     *  节点分裂
+     *  自底向上进行分裂操作
+     */
     public void spill() {
+
+        for(Map.Entry<byte[],Bucket> entry:this.getSubBucket().entrySet()){
+
+            byte[] key = entry.getKey();
+            Bucket child = entry.getValue();
+
+            byte[] value;
+            /**
+             * 如果一个bucket足够小，小到可以将一整个bucket的内容放到一个page里面，并且没有任何子bucket
+             * 则考虑直接将其放到一个page里面
+             */
+            if(child.inLineable()){
+                child.free();
+                value = child.write();
+            }else{
+                child.spill();
+                /**
+                 * 构造足够多的bucket序列化的内容
+                 * 主要是两个字段：
+                 *  rootpgid long 8个字节
+                 *  seq      long 8个字节
+                 */
+                value = new byte[8+8];
+                SerializeUtil.setBytes(this.getRootPgid(), value, 0);
+                SerializeUtil.setBytes(this.getRootPgid(), value, 8);
+            }
+
+
+            /**
+             * 如果此bucket没有rootnode，则直接continue
+             * 感觉像是防御式编程
+             */
+            if(child.getRootNode() == null){
+                continue;
+            }
+
+
+            /**
+             * spill之后，重新将新的bucket root pgid 插入到当前的之中。
+             */
+            Cursor cursor = this.cursor();
+            Cursor.CursorResult cursorResult = cursor.seek(key);
+
+
+            if(!Arrays.equals(cursorResult.key, key)){
+                throw new RuntimeException("ErrIncompatibleValue");
+            }
+
+            if((cursorResult.getFlags() & bucketLeafFlag) == 0){
+                throw new RuntimeException("ErrIncompatibleValue");
+            }
+            cursor.node().put(key, key, value, 0, bucketLeafFlag);
+        }
+
+
+        //到达最后一层的bucket要处理的逻辑
+        //防御式编程
+        if(this.getRootNode() == null){
+            return ;
+        }
+
+        //本bucket的rootnode进行分裂处理
+        this.getRootNode().spill();
+        this.setRootNode(this.getRootNode().root());
+
+        // Update the root node for this bucket.
+        if(this.getRootNode().getPgid() >= this.getTx().getMeta().getPgid()){
+            throw new RuntimeException(String.format("pgid (%d) above high water mark (%d)",
+                    this.getRootNode().getPgid(), this.getTx().getMeta().getPgid()));
+        }
+        this.setRootPgid(this.getRootNode().getPgid());
+    }
+
+    /**
+     * 释放资源的操作
+     * 主要是将其page放到 freelist里面
+     */
+    private void free() {
+    }
+
+    /**
+     * 是否可以将此bucket放到一个page
+     * @return
+     */
+    private boolean inLineable() {
+        Node node = this.getRootNode();
+
+        //此node已经不是叶子了，可以直接返回false了
+        if(node == null || !node.isLeaf()){
+            return false;
+        }
+
+        int size = CONTENT_OFFSET; /** page header sise */
+
+        for(Entry entry:node.getEntries()){
+            size += leafPageElementSize + entry.getKey().length + entry.getValue().length;
+
+            if((entry.getFlags() & bucketLeafFlag) != 0){
+                return false;
+            }else if(size > this.maxInlineBucketSize()){
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private int maxInlineBucketSize() {
+        return PAGE_SIZE / 4;
     }
 }
 

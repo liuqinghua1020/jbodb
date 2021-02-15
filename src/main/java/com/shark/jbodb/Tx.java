@@ -103,7 +103,7 @@ public class Tx {
     private void write() {
     }
 
-    private Page allocate(int n) {
+    public Page allocate(int n) {
         return null;
     }
 
@@ -135,5 +135,10 @@ public class Tx {
             this.pages = new HashMap<>();
             this.meta.setTxid(meta.getTxid() + 1);
         }
+    }
+
+    //TODO
+    public Page getPage(long pgid) {
+        return null;
     }
 }

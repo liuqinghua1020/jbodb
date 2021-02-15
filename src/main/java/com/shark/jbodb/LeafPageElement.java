@@ -2,7 +2,7 @@ package com.shark.jbodb;
 
 public class LeafPageElement {
 
-
+    public static final int leafPageElementSize = 4 /** flag 4 byte**/ + 4 + 4 + 4;
 
     /**
      *  0 表示 普通的value值

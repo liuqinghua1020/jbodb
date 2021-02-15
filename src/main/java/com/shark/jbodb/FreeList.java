@@ -7,6 +7,13 @@ import java.util.*;
 import static com.shark.jbodb.Page.CONTENT_OFFSET;
 
 /**
+ * 在内存中表示时分为两部分，一部分是可以分配的空闲页列表 ids，另一部分是按事务 id 分别记录了在对应事务期间新增的空闲页列表。
+ *
+ * 其中 pending 部分需要单独记录主要是为了做 MVCC 的事务：
+ *
+ *     写事务回滚时，对应事务待释放的空闲页列表要从 pending 项中删除。
+ *     某个写事务（比如 txid=7）已经提交，但可能仍有一些读事务（如 txid <=7）仍然在使用其刚释放的页，因此不能立即用作分配。
+ *
  * 物理结构如下
  *   pgid | flags | count | overflow | count | pgid1(8个字节) | pgid2(8个字节) | pgid3(8个字节) ...
  *   |         page header                   |              count 个 8个字节                     |

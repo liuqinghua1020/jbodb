@@ -12,6 +12,7 @@ public class Meta {
 
     private int flags;
 
+    // 各个子 bucket 根所组成的树
     @Getter
     private Bucket root;
 
@@ -19,8 +20,8 @@ public class Meta {
     //指向最新的 freeList page
     private long freeListPgid;
 
+    // 当前用到的最大 page id，也即用到 page 的数量
     @Getter
-    //正式开始的数据页
     private long pgid;
 
     @Getter
