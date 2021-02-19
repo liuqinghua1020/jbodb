@@ -6,14 +6,13 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
 import static com.shark.jbodb.DB.PAGE_SIZE;
 import static com.shark.jbodb.LeafPageElement.leafPageElementSize;
-import static com.shark.jbodb.Page.CONTENT_OFFSET;
+import static com.shark.jbodb.Page.PAGEHEADERSIZE;
 import static com.shark.jbodb.PageFlag.bucketLeafFlag;
 
 /**
@@ -344,7 +343,7 @@ public class Bucket {
             return false;
         }
 
-        int size = CONTENT_OFFSET; /** page header sise */
+        int size = PAGEHEADERSIZE; /** page header sise */
 
         for(Entry entry:node.getEntries()){
             size += leafPageElementSize + entry.getKey().length + entry.getValue().length;

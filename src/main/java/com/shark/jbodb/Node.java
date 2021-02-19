@@ -2,12 +2,17 @@ package com.shark.jbodb;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static com.shark.jbodb.DB.PAGE_SIZE;
+import static com.shark.jbodb.BranchPageElement.branchPageElementSize;
+import static com.shark.jbodb.DB.*;
+import static com.shark.jbodb.LeafPageElement.leafPageElementSize;
+import static com.shark.jbodb.Page.PAGEHEADERSIZE;
 
 /**
  * 一个page 映射到内存的结构
@@ -30,10 +35,12 @@ public class Node implements Comparable<Node>{
 
     private long pgid;
 
+    @Setter
     private Node parent;
 
     private List<Node> children;
 
+    @Setter
     private List<Entry> entries;
 
     //在本节点插入Key和Value
@@ -137,7 +144,98 @@ public class Node implements Comparable<Node>{
 
     //node[].length == 2
     private Node[] splitTwo(int pageSize) {
-        return null;
+        if(this.entries.size() <= (minKeysPerPage*2) || this.sizeLessThan(pageSize) ){
+            return new Node[]{this, null};
+        }
+
+        BigDecimal fillpercent = new BigDecimal(this.getBucket().getFillPercent());
+        if(fillpercent.compareTo(minFillPercent) < 0){
+            fillpercent = minFillPercent;
+        }else if(fillpercent.compareTo(maxFillPercent) >0 ){
+            fillpercent = maxFillPercent;
+        }
+
+
+        int threshold = fillpercent.multiply(new BigDecimal(PAGE_SIZE)).intValue();
+
+        // Determine split position and sizes of the two pages.
+        int splitIndex = this.splitIndex(threshold);
+
+        // Split node into two separate nodes.
+        // If there's no parent then we'll need to create one.
+        if(this.getParent() == null){
+            Node parant = Node.builder().children(new ArrayList<>()).build();
+            this.setParent(parant);
+            parent.addChild(this);
+        }
+
+        // Create a new node and add it to the parent.
+        Node next = Node.builder().bucket(this.getBucket()).leaf(this.isLeaf())
+                .parent(parent).build();
+        parent.addChild(next);
+
+        List<Entry> entries = this.getEntries();
+        List<Entry> thisNewList = entries.subList(0, splitIndex);
+        List<Entry> nextNewList = entries.subList(splitIndex+1, entries.size());
+        this.setEntries(thisNewList);
+        next.setEntries(nextNewList);
+        //clear for gc
+        entries.clear();
+        entries = null;
+
+        return new Node[]{this, next};
+    }
+
+    private void addChild(Node node) {
+        this.children.add(node);
+    }
+
+    // splitIndex finds the position where a page will fill a given threshold.
+    // It returns the index as well as the size of the first page.
+    // This is only be called from split().
+    private int splitIndex(int threshold) {
+        int sz = PAGEHEADERSIZE;
+
+        // Loop until we only have the minimum number of keys required for the second page.
+        int i=0;
+        int splitIndex = i;
+        for(i = 0; i < this.getEntries().size()-minKeysPerPage; i++ ){
+            splitIndex = i;
+            Entry inode = this.getEntries().get(i);
+            int elsize = this.pageElementSize() + inode.getKey().length + inode.getValue().length;
+
+            // If we have at least the minimum number of keys and adding another
+            // node would put us over the threshold then exit and return.
+            if (i >= minKeysPerPage && sz+elsize > threshold){
+                break;
+            }
+
+            // Add the element size to the total size.
+            sz += elsize;
+        }
+
+        return splitIndex;
+
+    }
+
+    private int pageElementSize() {
+        if (this.isLeaf()) {
+            return leafPageElementSize;
+        }
+        return branchPageElementSize;
+    }
+
+    private boolean sizeLessThan(int pageSize) {
+        int sz = PAGEHEADERSIZE;
+        int elsz = this.pageElementSize();
+        for (int i = 0; i < this.getEntries().size(); i++) {
+            Entry item = this.getEntries().get(i);
+            sz += elsz + item.getKey().length + item.getValue().length;
+            if(sz >= pageSize) {
+                return false;
+            }
+        }
+        return true;
     }
 
     //获取 spill之后新的root节点，主要是MVCC使用

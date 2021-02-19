@@ -2,6 +2,9 @@ package com.shark.jbodb;
 
 public class BranchPageElement {
 
+    public static final int branchPageElementSize = 4 /** flag 4 byte**/ + 4 + 4;
+
+
     /**
      * 参展 page的物理格式分布，指明 一个element 的 真实 k 的起始位置
      */

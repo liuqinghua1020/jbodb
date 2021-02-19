@@ -3,6 +3,8 @@ package com.shark.jbodb;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.Getter;
+
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -12,6 +14,11 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class DB {
 
     public static final int PAGE_SIZE = 1024 * 1024 * 4; //4K;
+
+    public static final int minKeysPerPage = 2 ;
+
+    public static final BigDecimal minFillPercent = new BigDecimal("0.1");
+    public static final BigDecimal maxFillPercent = new BigDecimal("1.0");
 
     //TODO 是否需要换成 字节数组，直接写入字节数组
     public static final int MAGIC = 0xED0CDAED;

@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.*;
 
-import static com.shark.jbodb.Page.CONTENT_OFFSET;
+import static com.shark.jbodb.Page.PAGEHEADERSIZE;
 
 /**
  * 在内存中表示时分为两部分，一部分是可以分配的空闲页列表 ids，另一部分是按事务 id 分别记录了在对应事务期间新增的空闲页列表。
@@ -42,7 +42,7 @@ public class FreeList {
             freeList.pgids = null;
         }else{
             freeList.pgids = new ArrayList<>(count);
-            ByteBuf byteBuf = page.slice(CONTENT_OFFSET, count * 8/** 一个pageid 的字节数**/);
+            ByteBuf byteBuf = page.slice(PAGEHEADERSIZE, count * 8/** 一个pageid 的字节数**/);
             for(int i=0;i<count;i++){
                 long pgid = byteBuf.readLong();
                 freeList.pgids.add(pgid);

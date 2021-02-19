@@ -13,7 +13,7 @@ import lombok.Getter;
 @Builder
 public class Page {
 
-    public static final int CONTENT_OFFSET = 8 /** pageid **/
+    public static final int PAGEHEADERSIZE = 8 /** pageid **/
                                              + 2 /** flag **/
                                              + 2 /** count **/
                                              + 4 ; /** overflow **/
