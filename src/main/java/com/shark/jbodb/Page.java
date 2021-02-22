@@ -41,6 +41,12 @@ public class Page {
 
     //---------- 内存信息 -----------------
 
+    /**
+     * TODO
+     * 有可能是
+     *   1. 从 文件中 mapped出来的 filemappedbufer的封装,此时 pgid ！= 0 ？
+     *   2. 新创建的Node所关联的Page，此时 pgid = 0 ？
+     */
     private ByteBuf byteBuf;
 
     public Page(ByteBuf byteBuf){

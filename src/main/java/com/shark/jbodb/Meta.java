@@ -20,7 +20,7 @@ public class Meta {
     //指向最新的 freeList page
     private long freeListPgid;
 
-    // 当前用到的最大 page id，也即用到 page 的数量
+    // 当前用到的最大 page id，mvcc的界限
     @Getter
     private long pgid;
 

@@ -23,6 +23,8 @@ public class FileStorage implements Storage {
     private FileChannel fileChannel;
 
 
+
+
     private FileLock fileLock;
 
     private MappedByteBuffer mappedByteBuffer;
@@ -60,6 +62,9 @@ public class FileStorage implements Storage {
         return newCreate;
     }
 
+    public void remapped(){
+        //TODO
+    }
 
     public ByteBuf byteBuf(){
         return wrapperMappedByteBuf;

@@ -42,6 +42,9 @@ public class Bucket {
 
     /**
      * 子subBucket
+     * 从事务加载起来的 bucket，以事务作为区分
+     * 从持久层中加载了之后，内存中就是每一个事务都不一样的了，可以做到mvcc
+     *
      */
     private Map<byte[], Bucket> subBucket = new HashMap<>();
 
@@ -57,6 +60,10 @@ public class Bucket {
     @Setter
     private Node rootNode;
 
+    /**
+     * 从事务加载起来的 bucket，以事务作为区分
+     * 每一个事务从 持久层加载之后，内存中就是每一个事务都不一样的了，可以做到mvcc
+     */
     private Map<Long, Node> nodes;
 
     private float fillPercent;
