@@ -66,12 +66,25 @@ public class FileStorage implements Storage {
         //TODO
     }
 
-    public ByteBuf byteBuf(){
-        return wrapperMappedByteBuf;
-    }
-
+    /**
+     * @link  public Page getPage(int pgid)
+     * @param position
+     * @param lenght
+     * @return
+     */
+    @Deprecated
     public ByteBuf byteBuf(int position, int lenght){
         return wrapperMappedByteBuf.slice(position, lenght);
+    }
+
+    /**
+     * 返回指定页面
+     * @param pgid >=0
+     * @return
+     */
+    public Page getPage(int pgid){
+        //TODO
+        return null;
     }
 
     public void sync(){
