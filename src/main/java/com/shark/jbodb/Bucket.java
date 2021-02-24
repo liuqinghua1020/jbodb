@@ -24,7 +24,6 @@ import static com.shark.jbodb.PageFlag.bucketLeafFlag;
  * 整个jodb就是一个完整的匿名的bucket，每一个构建都会将根作为一个匿名的bucket进行处理
  */
 @Getter
-@Builder
 public class Bucket {
 
     public static final int BucketHeaderSize = 8 /** rootPgid **/ + 8 /** sequence **/;
@@ -37,7 +36,10 @@ public class Bucket {
     @Setter
     private long sequence;
 
-    //对应的事务
+    /**
+     *  内存中表示的这个bucket，是属于哪一个tx的
+     *  每一个tx都从文件中加载组件自己的内存bucket
+     */
     private Tx tx;
 
     /**
@@ -50,6 +52,7 @@ public class Bucket {
 
     /**
      * inline page reference
+     * 这个只有本bucket是内联bucket才有效，否则就是空
      */
     @Setter
     private Page page;
@@ -68,19 +71,26 @@ public class Bucket {
 
     private float fillPercent;
 
+    private Bucket(){}
 
-    public Bucket(Tx tx){
-        this.rootPgid = tx.getMeta().getRoot().getRootPgid();
-        this.sequence = tx.getMeta().getRoot().getSequence();
+    public static Bucket newBucket(Tx tx){
+        assert tx != null;
+        Bucket bucket = new Bucket();
+        bucket.tx = tx;
+        bucket.fillPercent = DefaultFillPercent;
+
+        if(tx.isWriteable()){
+            bucket.subBucket = new HashMap<>();
+            bucket.nodes = new HashMap<>();
+        }
+
+        return bucket;
     }
 
-    public Bucket(){}
-
-    public static Bucket createEmptyBucket(){
+    public static Bucket newEmptyBucket(){
         Bucket bucket = new Bucket();
         bucket.rootPgid = 0;
         bucket.sequence = 0;
-
         bucket.rootNode = Node.builder().leaf(true).build();
         bucket.fillPercent = DefaultFillPercent;
         return bucket;
@@ -111,7 +121,7 @@ public class Bucket {
 
 
         //根据 key 创建一个新的bucket
-        Bucket bucket = Bucket.createEmptyBucket();
+        Bucket bucket = Bucket.newEmptyBucket();
         byte[] value = bucket.write();
 
         c.node().put(key, key, value, 0, bucketLeafFlag);
@@ -120,67 +130,7 @@ public class Bucket {
 
     }
 
-    private Bucket findBucket(byte[] key) {
-        //如果之前创建过，则直接返回
-        if(!this.subBucket.isEmpty()){
-            Bucket bucket = subBucket.get(key);
-            if(bucket != null){
-                return bucket;
-            }
-        }
 
-        Cursor c = this.cursor();
-
-        Cursor.CursorResult cursorResult = c.seek(key);
-
-        if(!Arrays.equals(key, cursorResult.getKey()) || (cursorResult.getFlags()& bucketLeafFlag) == 0){
-            return null;
-        }
-
-        Bucket child = this.openBucket(cursorResult.getValue());
-        this.subBucket.put(key, child);
-        return child;
-
-    }
-
-    /**
-     *  根据value值，序列化成bucket
-     * @param value
-     * @return
-     */
-    private Bucket openBucket(byte[] value) {
-
-        //TODO check heap byte buf?
-        ByteBuf byteBuf = Unpooled.copiedBuffer(value);
-
-        Bucket child = Bucket.builder().tx(this.tx).fillPercent(fillPercent).build();
-        if(this.getTx().isWriteable()){
-            child.subBucket = new HashMap<>();
-            child.nodes = new HashMap<>();
-        }
-
-        /**
-         * TODO
-         *  If this is a writable transaction then we need to copy the bucket entry.
-         *  Read-only transactions can point directly at the mmap entry.
-         */
-        if(this.tx.isWriteable()){
-            child.copyFromValue(byteBuf);
-        }else{
-            child.copyFromValue(byteBuf);
-        }
-
-        //inline bucket
-        if(child.getRootPgid() == 0){
-            child.setPage(new Page(byteBuf.slice(BucketHeaderSize, byteBuf.capacity()/** TODO ?**/)));
-        }
-        return child;
-    }
-
-    private void copyFromValue(ByteBuf value) {
-        this.rootPgid = value.readLong();
-        this.sequence = value.readLong();
-    }
 
     /**
      *
@@ -190,34 +140,14 @@ public class Bucket {
         return new Cursor(this);
     }
 
+
+
     /**
-     * 将此bucket，序列化成 byte字节数组
-     * @return
+     * Delete removes a key from the bucket.
+     * @param key
      */
-    private byte[] write() {
-
-        Node node = this.rootNode;
-
-        int size = node.size();
-
-        ByteBuf value = Unpooled.buffer(BucketHeaderSize + size);
-        Page page = new Page(value);
-        /**
-         * TODO 设置bucket的内容到page中
-         *      1. 设置 rootpgid，设置 seq
-         *      2. 设置 bucket的 inode内容进去
-         */
-        page.setPgid(0);
-        page.setFlag((short)0);
-        page.setCount((short) 0);
-        page.setOverflow(0);
-
-        page.writeLong(this.rootPgid);
-        page.writeLong(this.sequence);
-
-        node.write(page);
-
-        return page.toBytebuf();
+    public void delete(byte[] key){
+        //TODO
     }
 
     public void put(byte[] key, byte[] value){
@@ -248,9 +178,45 @@ public class Bucket {
 
     }
 
-    //再平衡，只有节点删除时才有可能触发，这里暂时不做
+    // node creates a node from a page and associates it with a given parent.
+    public Node createNode(long pgid, Node parent){
+
+        // Retrieve node if it's already been created.
+        Node n = this.nodes.get(pgid);
+        if(n != null){
+            return n;
+        }
+
+        // Otherwise create a node and cache it.
+        Node node = Node.builder().bucket(this).parent(parent).build();
+        if(parent == null){
+            this.rootNode = node;
+        }else{
+            parent.getChildren().add(node);
+        }
+
+        // Use the inline page if this is an inline bucket.
+        Page p = this.page;
+        if(page == null){
+            p = this.getTx().getPage(pgid);
+        }
+
+        // Read the page into the node and cache it.
+        node.read(p);
+        this.nodes.put(pgid, node);
+
+        return node;
+    }
+
+    //再平衡
     public void rebalance() {
-        //TODO
+        for(Node node:this.nodes.values()){
+            node.rebalance();
+        }
+
+        for(Bucket child:this.subBucket.values()){
+            child.rebalance();
+        }
     }
 
     /**
@@ -331,11 +297,139 @@ public class Bucket {
         this.setRootPgid(this.getRootNode().getPgid());
     }
 
+
+    /**
+     * 一个内存中的bucket的 和一个具体的事务绑定，
+     * 事务生命周期终止，此事务对应的bucket也消亡
+     * @param key
+     * @return
+     */
+    // Bucket retrieves a nested bucket by name.
+    // The bucket instance is only valid for the lifetime of the transaction.
+    private Bucket findBucket(byte[] key) {
+        //如果之前创建过，则直接返回
+        if(!this.subBucket.isEmpty()){
+            Bucket bucket = subBucket.get(key);
+            if(bucket != null){
+                return bucket;
+            }
+        }
+
+        Cursor c = this.cursor();
+
+        Cursor.CursorResult cursorResult = c.seek(key);
+
+        //查到了一个相同key的，但是类型不是bucket的，直接返回
+        if(!Arrays.equals(key, cursorResult.getKey()) || (cursorResult.getFlags()& bucketLeafFlag) == 0){
+            return null;
+        }
+
+        Bucket child = this.openBucket(cursorResult.getValue());
+
+        //放入缓存，以后在此tx中操作次bucket，就是直接操作内存里面的了。
+        this.subBucket.put(key, child);
+        return child;
+
+    }
+
+    /**
+     *  根据value值，序列化成bucket
+     * @param value
+     * @return
+     */
+    private Bucket openBucket(byte[] value) {
+        //TODO check heap byte buf?
+        ByteBuf byteBuf = Unpooled.copiedBuffer(value);
+
+        Bucket child = newBucket(this.tx);
+        if(this.getTx().isWriteable()){
+            child.subBucket = new HashMap<>();
+            child.nodes = new HashMap<>();
+        }
+
+        /**
+         * TODO
+         *  If this is a writable transaction then we need to copy the bucket entry.
+         *  Read-only transactions can point directly at the mmap entry.
+         */
+        if(this.tx.isWriteable()){
+            //TODO 这一个可以随意修改
+            child.copyFromValue(byteBuf);
+        }else{
+            //不能修改
+            child.copyFromValue(byteBuf);
+        }
+
+        //inline bucket
+        if(child.getRootPgid() == 0){
+            child.setPage(Page.createPageFromByteBuf(byteBuf.slice(BucketHeaderSize, byteBuf.capacity()/** TODO ?**/)));
+        }
+        return child;
+    }
+
+    private void copyFromValue(ByteBuf value) {
+        this.rootPgid = value.readLong();
+        this.sequence = value.readLong();
+    }
+
+
+    /**
+     * 将此bucket，序列化成 byte字节数组
+     * @return
+     */
+    private byte[] write() {
+
+        Node node = this.rootNode;
+
+        int size = node.size();
+
+
+        Page page = Page.createNewPage(BucketHeaderSize + size);
+        /**
+         * TODO 设置bucket的内容到page中
+         *      1. 设置 rootpgid，设置 seq
+         *      2. 设置 bucket的 inode内容进去
+         */
+        page.setPgid(0);
+        page.setFlag((short)0);
+        page.setCount((short) 0);
+        page.setOverflow(0);
+
+        page.writeLong(this.rootPgid);
+        page.writeLong(this.sequence);
+
+        node.write(page);
+
+        return page.toBytebuf();
+    }
+
     /**
      * 释放资源的操作
      * 主要是将其page放到 freelist里面
+     *
+     *
+     * free recursively frees all pages in the bucket.
      */
     private void free() {
+
+        if(this.rootPgid == 0){
+            return ;
+        }
+
+        Tx tx = this.getTx();
+
+        //inline bucket的情况
+        if(this.page != null){
+
+            tx.getDb().getFreeList().free(tx.getMeta().getTxid(), page);
+
+            return;
+        }
+
+        //TODO 从 bucket的 root 开始，往下释放
+
+        this.rootPgid = 0;
+
     }
 
     /**

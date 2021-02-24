@@ -313,6 +313,24 @@ public class Node implements Comparable<Node>{
 
     }
 
+
+    //获取 spill之后新的root节点，主要是MVCC使用
+    public Node root() {
+        return null;
+    }
+
+    @Override
+    public int compareTo(Node o) {
+        return 0;
+    }
+
+    // read initializes the node from a page.
+    public void read(Page page) {
+        //TODO
+    }
+
+
+
     //构造新的节点
     private List<Node> split(int pageSize) {
         List<Node> nodes = new ArrayList<>();
@@ -427,15 +445,5 @@ public class Node implements Comparable<Node>{
             }
         }
         return true;
-    }
-
-    //获取 spill之后新的root节点，主要是MVCC使用
-    public Node root() {
-        return null;
-    }
-
-    @Override
-    public int compareTo(Node o) {
-        return 0;
     }
 }

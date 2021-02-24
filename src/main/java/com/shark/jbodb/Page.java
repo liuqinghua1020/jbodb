@@ -1,6 +1,7 @@
 package com.shark.jbodb;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -49,8 +50,30 @@ public class Page {
      */
     private ByteBuf byteBuf;
 
-    public Page(ByteBuf byteBuf){
-        this.byteBuf = byteBuf;
+    /**
+     * pos for the business data;
+     */
+    private long ptr;
+
+    private Page(){
+    }
+
+    public static Page createPageFromByteBuf(ByteBuf byteBuf){
+        //TODO 用一个 pagePool/pageFactory 用于生产Page(可以考虑循环利用Page对象)
+        Page page = new Page();
+        page.byteBuf = byteBuf;
+        int startOffset = page.byteBuf.readerIndex();
+        int limit = page.byteBuf.capacity();
+        assert startOffset + PAGEHEADERSIZE <= limit;
+        page.ptr = startOffset + PAGEHEADERSIZE;
+        return page;
+    }
+
+    public static Page createNewPage(int size){
+        Page page = new Page();
+        page.byteBuf = Unpooled.buffer(size);
+        page.ptr = PAGEHEADERSIZE;
+        return page;
     }
 
 

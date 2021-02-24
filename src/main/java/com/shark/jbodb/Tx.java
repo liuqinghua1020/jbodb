@@ -133,7 +133,9 @@ public class Tx {
 
         this.meta = db.meta().copy();
 
-        this.root = new Bucket(this);
+        this.root = Bucket.newBucket(this);
+        this.root.setRootPgid(this.getMeta().getRoot().getRootPgid());
+        this.root.setSequence(this.getMeta().getRoot().getSequence());
 
         if(writeable){
             this.pages = new HashMap<>();

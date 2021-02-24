@@ -105,7 +105,7 @@ public class DB {
         ByteBuf buffer = storage.slice(0, 4*pageSize);
         //初始化两个meta
         for(int i=0;i<2;i++){
-            Page page = new Page(buffer.slice(i*pageSize, pageSize));
+            Page page = Page.createPageFromByteBuf(buffer.slice(i*pageSize, pageSize));
             page.setPgid(i);
             page.setFlag(PageFlag.MetaPageFlag);
             page.setCount((short)0);
@@ -128,13 +128,13 @@ public class DB {
 
 
         //初始化 freelist，初始化的时候是一个空的 freelist
-        Page freeListPage = new Page(buffer.slice(2*pageSize, pageSize));
+        Page freeListPage = Page.createPageFromByteBuf(buffer.slice(2*pageSize, pageSize));
         freeListPage.setPgid(2);
         freeListPage.setFlag(PageFlag.FreelistPageFlag);
         freeListPage.setCount((short)0);
         freeListPage.setOverflow(0);
 
-        Page emptyLeafPage = new Page(buffer.slice(3*pageSize, pageSize));
+        Page emptyLeafPage = Page.createPageFromByteBuf(buffer.slice(3*pageSize, pageSize));
         emptyLeafPage.setPgid(3);
         emptyLeafPage.setFlag(PageFlag.LeafPageFlag);
         emptyLeafPage.setCount((short)0);
