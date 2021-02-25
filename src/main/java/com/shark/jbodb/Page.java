@@ -119,4 +119,30 @@ public class Page {
         return null;
     }
 
+
+    public BranchPageElement[] branchPageElements(){
+        //TODO
+        return null;
+    }
+
+    public LeafPageElement[] leafPageElements(){
+        //TODO
+        return null;
+    }
+
+    public LeafPageElement leafPageElement(int index) {
+        //TODO
+        return null;
+    }
+
+
+    /**
+     * find key in index
+     * @param key
+     * @return
+     */
+    public FindEntryResult findEntry(byte[] key) {
+        //TODO
+        return null;
+    }
 }

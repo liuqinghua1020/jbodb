@@ -1,5 +1,7 @@
 package com.shark.jbodb;
 
+import lombok.Getter;
+
 public class LeafPageElement {
 
     public static final int leafPageElementSize = 4 /** flag 4 byte**/ + 4 + 4 + 4;
@@ -8,6 +10,7 @@ public class LeafPageElement {
      *  0 表示 普通的value值
      *  1 表示 value是一个bucket， @
      */
+    @Getter
     private int flag;
 
     /**
@@ -24,6 +27,16 @@ public class LeafPageElement {
      * v的长度
      */
     private int vSize;
+
+    public byte[] getKey(){
+        //TODO
+        return null;
+    }
+
+    public byte[] getValue(){
+        //TODO
+        return null;
+    }
 
 
 }

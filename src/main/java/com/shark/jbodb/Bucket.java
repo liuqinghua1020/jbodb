@@ -461,6 +461,21 @@ public class Bucket {
     private int maxInlineBucketSize() {
         return PAGE_SIZE / 4;
     }
+
+    // pageNode returns the in-memory node, if it exists.
+    // Otherwise returns the underlying page.
+    public PageNodeResult pageNode(long pgid) {
+        //TODO
+        return null;
+    }
+
+
+    @Getter
+    public static final class PageNodeResult{
+        private Page page;
+        private Node node;
+    }
+
 }
 
 

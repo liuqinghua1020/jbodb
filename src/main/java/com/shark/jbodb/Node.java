@@ -67,6 +67,17 @@ public class Node implements Comparable<Node>{
 
     }
 
+
+    /**
+     * 在node的Entries中配置查找符合key的内容
+     * @param key
+     * @return
+     */
+    public FindEntryResult findEntry(byte[] key) {
+        //TODO
+        return null;
+    }
+
     /**
      * 返回一个 page header + inode 内容的大小的总共字节数
      * @return
@@ -446,4 +457,5 @@ public class Node implements Comparable<Node>{
         }
         return true;
     }
+
 }
